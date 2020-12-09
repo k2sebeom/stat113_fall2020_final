@@ -1,0 +1,156 @@
+---
+title: "An analysis of the difference between STEM major and non STEM majors in the proportion of graduates who get a job that requires a college degree"
+author: "Megan Grabill, Riyad Alam, SeBeom Lee"
+output:
+  pdf_document: default
+  html_document:
+    highlight: pygments
+    theme: cerulean
+    toc: true
+    toc_float: true
+---
+
+```{r echo = FALSE, results = 'hide', message = FALSE}
+library(mosaic)
+library(tidyverse)
+knitr::opts_chunk$set(
+    echo = TRUE,           # change to FALSE for the final version
+    results = 'markdown',  # change to 'hide' for the final version
+    message = FALSE,
+    warning = FALSE,
+    fig.keep = 'last')
+```
+
+## Introduction
+
+## Data and Methods
+
+
+## Results
+
+### Parameters and Hypotheses 
+
+### Descriptive Analysis
+```{r echo=FALSE, results = 'hide'}
+# Load dataset
+majors <- read.file("~/stat113/final_project/recent-grads.csv")
+```
+
+```{r echo=FALSE, results='hide'}
+# Dividing the dataset into stem and non_stem groups
+
+stem <- filter(majors, (grepl("Science", Major_category) | 
+                        grepl("Engineering", Major_category) |
+                        grepl("Health", Major_category) | 
+                        grepl("Computers", Major_category)) & 
+                        !grepl("Social", Major_category))
+
+non_stem <- filter(majors, grepl("Social", Major_category) | 
+                          !grepl("Science", Major_category) & 
+                          !grepl("Engineering", Major_category) & 
+                          !grepl("Computers", Major_category) & 
+                          !grepl("Health", Major_category))
+```
+For the analysis, we divided the dataset into two groups. The group "STEM" has `r nrow(stem)` cases, and the other group, "Non-stem" has `r nrow(non_stem)` cases in it. We estimated the levels of the variable by calculating the proportion of the jobs that require a college degree out of the jobs that graduates with each major have. Figure shows the distribution of the variable in two groups.
+
+```{r echo=FALSE, results='hide'}
+# Calculate the variable "Degree_prop" and calculate the mean
+stem <- mutate(stem, Degree_prop = College_jobs / (College_jobs + Non_college_jobs))
+non_stem <- mutate(non_stem, Degree_prop = College_jobs / (College_jobs + Non_college_jobs)) %>% drop_na(., "Degree_prop")
+
+stem_mean <- mean(~Degree_prop, data = stem)
+non_stem_mean <- mean(~Degree_prop, data = non_stem)
+stem_sd <- sd(~Degree_prop, data = stem)
+non_stem_sd <- sd(~Degree_prop, data = non_stem)
+stem_median <- median(~Degree_prop, data = stem)
+non_stem_median <- median(~Degree_prop, data = non_stem)
+```
+
+```{r echo=FALSE, results='hide'}
+# Making a dataframe conducive to plotting
+Group <- c()
+Degree_prop <- c()
+Mean <- c()
+SD <- c()
+
+for(x in stem[,"Degree_prop"]){
+  Group <- c(Group, "stem")
+  Degree_prop <- c(Degree_prop, x)
+  Mean <- c(Mean, stem_mean)
+  SD <- c(SD, stem_sd)
+}
+for(y in non_stem[,"Degree_prop"]){
+  Group <- c(Group, "non_stem")
+  Degree_prop <- c(Degree_prop, y)
+  Mean <- c(Mean, non_stem_mean)
+  SD <- c(SD, non_stem_sd)
+}
+
+degree.data <- data.frame(Group, Degree_prop)
+```
+
+```{r echo=FALSE, results='hide'}
+# Plot a histogram for each group
+gf_histogram(~Degree_prop, data = degree.data, binwidth = 0.03) + facet_wrap(~Group, ncol = 1) +
+  geom_vline(aes(xintercept=Mean), data=degree.data, colour="blue") +
+  geom_label(aes(x=Mean, label=paste("sMean =", round(Mean,2))), y = 6, colour="blue", data=degree.data) +
+  geom_segment(aes(x=Mean, y=3, xend=Mean + SD, yend=3), colour="red", data=degree.data) +
+  geom_label(aes(x=Mean + (SD / 2), label=paste("sSD =", round(SD, 2))), y = 2, colour="red", data=degree.data)
+```
+
+The mean of the variable in STEM group is `r round(stem_mean, 2)` with a standard deviation of `r round(stem_sd, 2)`, and the mean of the variable in Non_STEM group is `r round(non_stem_mean, 2)` with a standard deviation of `r round(non_stem_sd, 2)`. There is one outlier in STEM group and 4 outliers in Non_STEM group, but considering that the difference between the mean and the median is fairly small (stem: `r round(stem_mean - stem_median, 3)`, non_stem: `r round(non_stem_mean - non_stem_median, 3)`), we decided that the effects of outliers is not extreme, and mean can be used as a representative statistic for each group.
+
+Our statistic of interest $x_{stem} - x_{non}$ is `r round(stem_mean - non_stem_mean, 2)`. The difference in mean is positive, which means that the mean of STEM group is bigger than that of Non-STEM group.
+
+
+### Inferential Analysis
+
+We want to find out the 95% confidence interval for the difference of means. We will use a t-distrbiution for the anlalysis, and it is appropriate since both samples we have are big enough. STEM group has `r nrow(stem)` cases, which is bigger than 27, and Non_STEM group has `r nrow(non_stem)` cases, which is also bigger than 27.
+
+To estimate the standardized endpoint for a 95% confidence interval, we use a t-distribution with degree of freedom of $n_{stem} - 1 =$ `r nrow(stem) - 1`.
+
+```{r echo=FALSE, results='hide'}
+# Find the standardized endpoints
+t_end <- qdist("t", p=c(0.025, 0.975), df=nrow(stem) - 1)
+```
+
+We could find out that the standardized endpoints are $t_{end} = \pm$ `r round(t_end[2], 2)`. 
+
+```{r echo=FALSE, results='hide'}
+# Find SE
+SE <- SE <- sqrt((stem_sd * stem_sd / nrow(stem)) + (non_stem_sd * non_stem_sd / nrow(non_stem)))
+```
+
+To estimate the standard error, we used an equation $\hat{SE} = \sqrt{\frac{s^2_{stem}}{n_{stem}} + \frac{s^2_{non}}{n_{non}}}$. From the given sample, we could estimate the standard error of $\hat{SE} =$ `r round(SE, 2)`.
+
+With the sample statistic $x_{stem} - x_{non} =$ `r round(stem_mean - non_stem_mean, 2)` and standard error of $\hat{SE} =$ `r round(SE, 2)`, we calculated the 95% confidence interval using an equation of $CI = Sample Stat. \pm t_{end} \cdot \hat{SE}$.
+
+```{r echo=FALSE, results='hide'}
+# Find CI
+CI <- (stem_mean - non_stem_mean) + (t_end * SE)
+```
+
+We could obtain a 95% confidence interval for the difference of means from `r round(CI[1], 2)` to `r round(CI[2], 2)`, which means that we are 95% confident that the percentage of graduates who get a job that requires a college degree with STEM majors is from `r floor(100 * CI[1])` to `r floor(100 * CI[2])` percentage points higher than that of graduates with Non-STEM majors. One implication of the fact that the confidence interval does not include zero is that we are 95% confident that the difference between two groups is not zero.
+
+
+```{r echo=FALSE, results='hide'}
+# Calculate the test statistic
+t_test <- (stem_mean - non_stem_mean) / SE
+```
+
+Our null hypothesis is that $H_0: \mu_{stem} - \mu_{non} = 0$ and the alternative hypothesis is $H_1: \mu_{stem} - \mu_{non} > 0$. To test the hypothesis we estimate how likely it is to observe the result as extreme as our observed sample. Using the sample statistic and the standard error estimated above, we set up a test statistic using an equation $Test Stat. = \frac{Observed Diff. - Null Diff.}{SE}$. With the observed difference of `r round(stem_mean - non_stem_mean, 2)` null difference of 0 and standard error of `r round(SE, 2)`, we calculated the test statistic of $Test Stat. =$ `r round(t_test, 2)`. Then, we estimated the P-value by a right-tailed test on a t-distribution with degree of freedom `r nrow(stem)`.
+
+```{r echo=FALSE, results='hide'}
+p <- pdist("t", q=t_test, df = nrow(stem), lower.tail = FALSE)
+```
+
+We obtained a P-value of `r round(p, 10)`, which is extremely smaller than $\alpha = 0.05$, which means that if there were no difference between STEM group and Non-STEM group, the probability of observing result as extreme as our sample is almost 0. Therefore, we can conclude that there exists a statistically significant difference between two groups and reject the null hypothesis. Aligning with our alternative hypothesis, we conclude that the percentage of STEM major students who get a job that requires a college degree is significantly higher than that of non-STEM major students.
+
+```{r echo=FALSE, results='hide'}
+# Calculate Cohen's d
+Cohen_d <- abs(stem_mean - non_stem_mean) / sqrt(((nrow(stem) * stem_sd**2) + (nrow(non_stem) * non_stem_sd**2)) / (nrow(stem) + nrow(non_stem)))
+```
+
+In addition, we could obtain a Cohen's d of `r round(Cohen_d, 2)` which can be considered relatively large.
+
+## Discussion
